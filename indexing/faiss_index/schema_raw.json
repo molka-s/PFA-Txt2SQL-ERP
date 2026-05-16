@@ -1,0 +1,322 @@
+{
+  "produits": {
+    "columns": [
+      "id",
+      "nom_produit",
+      "description",
+      "prix_unitaire",
+      "marque_id",
+      "sous_cat_id",
+      "code_barre",
+      "statut"
+    ],
+    "related_tables": [
+      "marques",
+      "sous_categories",
+      "produits_promos",
+      "lignes_ventes",
+      "details_achats",
+      "stocks",
+      "avis_produits"
+    ]
+  },
+  "sous_categories": {
+    "columns": [
+      "id",
+      "nom_sous_cat",
+      "categorie_id"
+    ],
+    "related_tables": [
+      "produits",
+      "categories"
+    ]
+  },
+  "categories": {
+    "columns": [
+      "id",
+      "nom_categorie"
+    ],
+    "related_tables": [
+      "sous_categories"
+    ]
+  },
+  "marques": {
+    "columns": [
+      "id",
+      "nom_marque",
+      "pays_origine"
+    ],
+    "related_tables": [
+      "produits"
+    ]
+  },
+  "villes_tunisie": {
+    "columns": [
+      "id",
+      "nom_ville",
+      "code_postal",
+      "gouvernorat"
+    ],
+    "related_tables": [
+      "boutiques",
+      "clients",
+      "depots"
+    ]
+  },
+  "boutiques": {
+    "columns": [
+      "id",
+      "nom_boutique",
+      "adresse",
+      "ville_id"
+    ],
+    "related_tables": [
+      "villes_tunisie",
+      "employes",
+      "commandes_ventes",
+      "depenses_fixes"
+    ]
+  },
+  "clients": {
+    "columns": [
+      "id",
+      "nom",
+      "prenom",
+      "email",
+      "tel",
+      "ville_id",
+      "genre",
+      "date_naissance",
+      "date_inscription"
+    ],
+    "related_tables": [
+      "villes_tunisie",
+      "commandes_ventes",
+      "avis_produits",
+      "fidelite_points"
+    ]
+  },
+  "fournisseurs": {
+    "columns": [
+      "id",
+      "nom_fournisseur",
+      "contact",
+      "pays"
+    ],
+    "related_tables": [
+      "achats_fournisseurs"
+    ]
+  },
+  "employes": {
+    "columns": [
+      "id",
+      "nom",
+      "prenom",
+      "poste",
+      "salaire",
+      "boutique_id",
+      "date_embauche"
+    ],
+    "related_tables": [
+      "boutiques",
+      "commandes_ventes"
+    ]
+  },
+  "produits_promos": {
+    "columns": [
+      "id",
+      "produit_id",
+      "promo_id"
+    ],
+    "related_tables": [
+      "produits",
+      "promotions"
+    ]
+  },
+  "promotions": {
+    "columns": [
+      "id",
+      "nom_promo",
+      "remise_pourcentage",
+      "date_debut",
+      "date_fin"
+    ],
+    "related_tables": [
+      "produits_promos"
+    ]
+  },
+  "paiements": {
+    "columns": [
+      "id",
+      "commande_id",
+      "mode_id",
+      "montant"
+    ],
+    "related_tables": [
+      "commandes_ventes",
+      "modes_paiement"
+    ]
+  },
+  "lignes_ventes": {
+    "columns": [
+      "id",
+      "commande_id",
+      "produit_id",
+      "quantite",
+      "prix_unitaire_applique"
+    ],
+    "related_tables": [
+      "commandes_ventes",
+      "produits"
+    ]
+  },
+  "commandes_ventes": {
+    "columns": [
+      "id",
+      "client_id",
+      "boutique_id",
+      "employe_id",
+      "date_vente",
+      "statut_commande",
+      "total_ht",
+      "tva",
+      "total_ttc"
+    ],
+    "related_tables": [
+      "paiements",
+      "lignes_ventes",
+      "boutiques",
+      "clients",
+      "employes",
+      "retours_clients",
+      "livraisons"
+    ]
+  },
+  "modes_paiement": {
+    "columns": [
+      "id",
+      "type_paiement"
+    ],
+    "related_tables": [
+      "paiements"
+    ]
+  },
+  "retours_clients": {
+    "columns": [
+      "id",
+      "commande_id",
+      "motif",
+      "date_retour"
+    ],
+    "related_tables": [
+      "commandes_ventes"
+    ]
+  },
+  "livraisons": {
+    "columns": [
+      "id",
+      "commande_id",
+      "societe_livraison",
+      "statut",
+      "date_livraison",
+      "adresse_livraison"
+    ],
+    "related_tables": [
+      "commandes_ventes"
+    ]
+  },
+  "details_achats": {
+    "columns": [
+      "id",
+      "achat_id",
+      "produit_id",
+      "quantite",
+      "prix_achat"
+    ],
+    "related_tables": [
+      "achats_fournisseurs",
+      "produits"
+    ]
+  },
+  "depots": {
+    "columns": [
+      "id",
+      "nom_depot",
+      "adresse",
+      "ville_id"
+    ],
+    "related_tables": [
+      "villes_tunisie",
+      "stocks"
+    ]
+  },
+  "stocks": {
+    "columns": [
+      "id",
+      "produit_id",
+      "depot_id",
+      "quantite_disponible"
+    ],
+    "related_tables": [
+      "depots",
+      "produits"
+    ]
+  },
+  "achats_fournisseurs": {
+    "columns": [
+      "id",
+      "fournisseur_id",
+      "date_achat",
+      "montant_total"
+    ],
+    "related_tables": [
+      "details_achats",
+      "fournisseurs"
+    ]
+  },
+  "logs_systeme": {
+    "columns": [
+      "id",
+      "utilisateur_id",
+      "action",
+      "horodatage"
+    ],
+    "related_tables": []
+  },
+  "depenses_fixes": {
+    "columns": [
+      "id",
+      "boutique_id",
+      "type_depense",
+      "montant",
+      "date_depense"
+    ],
+    "related_tables": [
+      "boutiques"
+    ]
+  },
+  "avis_produits": {
+    "columns": [
+      "id",
+      "client_id",
+      "produit_id",
+      "note",
+      "commentaire",
+      "date_avis"
+    ],
+    "related_tables": [
+      "clients",
+      "produits"
+    ]
+  },
+  "fidelite_points": {
+    "columns": [
+      "id",
+      "client_id",
+      "points_accumules"
+    ],
+    "related_tables": [
+      "clients"
+    ]
+  }
+}

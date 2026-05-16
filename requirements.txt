@@ -1,0 +1,26 @@
+# ─── LangChain & RAG ───────────────────────────────────────────
+langchain==0.3.14
+langchain-community==0.3.14
+langchain-core==0.3.29
+langchain-huggingface==0.1.2
+faiss-cpu==1.9.0
+sentence-transformers==3.3.1
+transformers>=5.8.0
+torch==2.5.1
+
+# ─── Base de données ──────────────────────────────────────────
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# ─── Backend API ──────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.6
+requests>=2.32.0
+
+# ─── Utilitaires ──────────────────────────────────────────────
+python-dotenv==1.0.1
+sqlparse==0.5.3
+pandas==2.2.3
+tqdm==4.67.1
+numpy==1.26.4
