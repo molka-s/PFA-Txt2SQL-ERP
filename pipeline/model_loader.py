@@ -12,33 +12,30 @@ def generate_sql_ollama(messages: list[dict] | str, temperature: float = 0.0) ->
     """
     Génère du SQL via l'API locale d'Ollama.
     """
-    url = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+    base_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    base_url = base_url.replace("/api/generate", "").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "mon-modele-sql")
     
-    # Construction du prompt
     if isinstance(messages, list):
-        prompt = ""
-        for m in messages:
-            role = m.get("role", "user")
-            content = m.get("content", "")
-            if role == "system":
-                prompt += f"INSTRUCTIONS:\n{content}\n\n"
-            elif role == "user":
-                prompt += f"QUESTION:\n{content}\n\n"
-            elif role == "assistant":
-                prompt += f"SQL:\n{content}\n\n"
-        prompt += "SQL:\n"
-    else:
-        prompt = messages
-
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": temperature
+        url = f"{base_url}/api/chat"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": temperature
+            }
         }
-    }
+    else:
+        url = f"{base_url}/api/generate"
+        payload = {
+            "model": model,
+            "prompt": messages,
+            "stream": False,
+            "options": {
+                "temperature": temperature
+            }
+        }
     
     print(f"[ollama] Envoi requête à {url} (modèle: {model})")
     
@@ -52,7 +49,10 @@ def generate_sql_ollama(messages: list[dict] | str, temperature: float = 0.0) ->
                 
             response.raise_for_status()
             res_json = response.json()
-            sql = res_json.get("response", "")
+            if isinstance(messages, list):
+                sql = res_json.get("message", {}).get("content", "")
+            else:
+                sql = res_json.get("response", "")
             
             # Nettoyage des \n littéraux
             sql = sql.replace("\\n", "\n")

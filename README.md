@@ -92,4 +92,4 @@ Ouvrez `http://localhost:5173` dans votre navigateur.
 | `TOP_K_TABLES` | Nombre de tables injectées dans le prompt (défaut: 4) |
 | `MAX_RETRIES` | Nombre de tentatives d'autocorrection (défaut: 3) |
 
--
+

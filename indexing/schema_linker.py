@@ -43,41 +43,82 @@ def _load_index():
 def get_relevant_schema(question: str, k: int = None) -> str:
     """
     Retourne un schéma filtré par score et réduit pour les tables secondaires.
-    - Tables Primaires (Score < 0.5) : Schéma complet
-    - Tables Secondaires (0.5 < Score < 0.65) : Uniquement colonnes
+    - Tables Primaires (Score < 0.99) : Schéma complet
+    - Tables Secondaires (0.99 < Score < 0.99) : Uniquement colonnes
     """
     if k is None:
         k = int(os.getenv("TOP_K_TABLES", 5))
 
+    # --- Heuristiques Métier (Keyword Matching) ---
+    q_lower = question.lower()
+    
+    force_villes = any(kw in q_lower for kw in ["gouvernorat", "ville", "tunis", "region", "région", "sfax", "sousse", "nabeul"])
+    force_sales = any(kw in q_lower for kw in ["vente", "ca", "chiffre", "affaires", "revenu", "commande", "quantite", "quantité", "prix", "panier", "facture"])
+    force_boutiques = any(kw in q_lower for kw in ["boutique", "magasin", "point de vente"])
+    force_clients = any(kw in q_lower for kw in ["client", "fidelite", "fidélité", "points"])
+    force_stocks = any(kw in q_lower for kw in ["stock", "depot", "dépôt", "entrepot", "entrepôt", "inventaire"])
+    force_produits = any(kw in q_lower for kw in ["produit", "article", "reference", "référence", "marque", "categorie", "catégorie"])
+    force_brands = any(kw in q_lower for kw in ["marque", "brand"])
+    force_categories = any(kw in q_lower for kw in ["categorie", "catégorie", "rayon", "famille", "sous-categorie", "sous-catégorie"])
+
+    if force_villes or force_sales or force_boutiques or force_clients or force_stocks or force_produits or force_brands or force_categories:
+        k = max(k, 12) # Augmente K pour ratisser plus large avec FAISS
+
     vs = _load_index()
-    # FAISS avec E5 retourne souvent des distances L2. Plus petit = plus proche.
-    docs_and_scores = vs.similarity_search_with_score(question, k=k)
+    # Utiliser le préfixe standard E5 pour les requêtes
+    prefixed_question = f"query: {question}"
+    docs_and_scores = vs.similarity_search_with_score(prefixed_question, k=k)
 
     primary_blocks = []
     secondary_blocks = []
     seen_tables = set()
     
-    # Seuils de distance (à ajuster selon les tests)
-    PRIMARY_THRESHOLD = 0.60 
-    SECONDARY_THRESHOLD = 0.75
+    PRIMARY_THRESHOLD = 0.99 
+    SECONDARY_THRESHOLD = 0.99
 
     for doc, score in docs_and_scores:
         table = doc.metadata.get("table")
         if table:
-            if table in seen_tables: continue
-            seen_tables.add(table)
+            table_lower = table.lower()
+            if table_lower in seen_tables: continue
+            seen_tables.add(table_lower)
         
-        # Filtrage par score
+        # Filtrage par score (très tolérant pour ne rien perdre d'utile)
         if score > SECONDARY_THRESHOLD:
             continue
             
         if score <= PRIMARY_THRESHOLD:
             primary_blocks.append(doc.page_content)
         else:
-            # Schéma réduit pour les tables secondaires (on extrait juste les colonnes)
             columns = ", ".join(doc.metadata.get("columns", []))
             reduced = f"TABLE: {table} (Colonnes: {columns})"
             secondary_blocks.append(reduced)
+
+    # --- Injection garantie des tables critiques via heuristics ---
+    injections = []
+    if force_villes: injections.append("villes_tunisie")
+    if force_sales:
+        injections.append("commandes_ventes")
+        injections.append("lignes_ventes")
+    if force_boutiques: injections.append("boutiques")
+    if force_clients: injections.append("clients")
+    if force_stocks:
+        injections.append("stocks")
+        injections.append("depots")
+    if force_produits: injections.append("produits")
+    if force_brands: injections.append("marques")
+    if force_categories:
+        injections.append("categories")
+        injections.append("sous_categories")
+
+    for t_name in injections:
+        if t_name not in seen_tables:
+            docs = vs.similarity_search(f"query: {t_name}", k=5)
+            for d in docs:
+                if d.metadata.get("table", "").lower() == t_name:
+                    primary_blocks.append(d.page_content)
+                    seen_tables.add(t_name)
+                    break
 
     context = ""
     if primary_blocks:
@@ -97,12 +138,29 @@ def get_relevant_tables(question: str, k: int = None) -> list[str]:
     
     tables = set()
     for doc, score in docs_and_scores:
-        if score > 0.75: continue # Même seuil que SECONDARY_THRESHOLD
+        if score > 0.75: continue
         
         if "table" in doc.metadata:
-            tables.add(doc.metadata["table"])
+            tables.add(doc.metadata["table"].lower())
         if doc.metadata.get("type") == "join_path":
             if "from" in doc.metadata: tables.add(doc.metadata["from"].lower())
             if "to" in doc.metadata: tables.add(doc.metadata["to"].lower())
+            
+    q_lower = question.lower()
+    
+    if any(kw in q_lower for kw in ["gouvernorat", "ville", "tunis", "region", "région", "sfax", "sousse", "nabeul"]):
+        tables.add("villes_tunisie")
+    if any(kw in q_lower for kw in ["vente", "ca", "chiffre", "affaires", "revenu", "commande", "quantite", "quantité", "prix", "panier", "facture"]):
+        tables.add("commandes_ventes")
+        tables.add("lignes_ventes")
+    if any(kw in q_lower for kw in ["boutique", "magasin", "point de vente"]):
+        tables.add("boutiques")
+    if any(kw in q_lower for kw in ["client", "fidelite", "fidélité", "points"]):
+        tables.add("clients")
+    if any(kw in q_lower for kw in ["stock", "depot", "dépôt", "entrepot", "entrepôt", "inventaire"]):
+        tables.add("stocks")
+        tables.add("depots")
+    if any(kw in q_lower for kw in ["produit", "article", "reference", "référence", "marque", "categorie", "catégorie"]):
+        tables.add("produits")
             
     return list(tables)

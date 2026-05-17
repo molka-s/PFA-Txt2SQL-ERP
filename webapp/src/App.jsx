@@ -25,7 +25,13 @@ import {
   Trash2,
   Check,
   X,
-  Square
+  Square,
+  TrendingUp,
+  Users,
+  ShoppingBag,
+  CreditCard,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -39,7 +45,14 @@ import {
   Pie, 
   Cell,
   LineChart,
-  Line
+  Line,
+  AreaChart,
+  Area,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
 import ReactFlow, { 
   Background, 
@@ -56,9 +69,69 @@ import 'reactflow/dist/style.css';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
+const WelcomeHero = ({ theme }) => {
+  const [displayedText, setDisplayedText] = useState('');
+  const fullText = "SELECT nom_produit, prix_vente\nFROM produits\nWHERE prix_vente > 100;";
+  
+  useEffect(() => {
+    let index = 0;
+    const timer = setInterval(() => {
+      setDisplayedText(fullText.substring(0, index));
+      index++;
+      if (index > fullText.length) clearInterval(timer);
+    }, 25);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '65vh', textAlign: 'center', padding: '0 20px', animation: 'fadeIn 0.5s ease-out' }}>
+      <style>{`@keyframes blink { 50% { border-color: transparent; } }`}</style>
+      <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '24px', marginBottom: '24px', boxShadow: '0 0 40px rgba(59, 130, 246, 0.2)' }}>
+        <Database size={56} className="text-accent" />
+      </div>
+      <h1 style={{fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px'}}>
+        Bienvenue sur <span style={{color: 'var(--accent)'}}>Txt2SQL Expert</span>
+      </h1>
+      <p style={{color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
+        Transformez vos questions métier en requêtes SQL instantanées. Discutez naturellement avec votre base de données ERP et générez des rapports analytiques puissants en quelques secondes.
+      </p>
+      <div style={{ background: theme === 'dark' ? '#1e1e2e' : '#e2e8f0', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '650px', textAlign: 'left', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981)' }} />
+        <pre style={{ margin: 0, color: '#a6accd', fontFamily: '"Fira Code", monospace', fontSize: '0.95rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+          <code>
+            <span style={{color: theme === 'dark' ? '#7dd3fc' : '#0284c7'}}>{displayedText}</span>
+            <span style={{borderRight: '2px solid var(--accent)', animation: 'blink 1s step-end infinite'}}>&nbsp;</span>
+          </code>
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+const formatChatTitle = (text) => {
+  let title = text;
+  const prefixesToRemove = [
+    /^(quels? sont|quelles? sont|quel est|quelle est|qui sont|qui est|donne[- ]moi|donnez[- ]moi)\s+(les\s+|des\s+)?/i,
+    /^(afficher|affiche|montrer|montre|lister|liste des?|donner|avoir|je veux|peux-tu|pouvez-vous|trouver|chercher)\s+(les\s+|des\s+)?/i,
+    /^(combien de|comment)\s+/i
+  ];
+  
+  for (const regex of prefixesToRemove) {
+    title = title.replace(regex, '');
+  }
+  
+  title = title.replace(/^[?\s,.]+/, '').trim();
+  if (title.length > 0) {
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+  } else {
+    title = "Nouvelle requête";
+  }
+  return title.length > 25 ? title.substring(0, 25) + "..." : title;
+};
+
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-  const [view, setView] = useState('chat'); // 'chat' | 'schema' | 'reporting'
+  const [view, setView] = useState('chat'); // 'dashboard' | 'chat' | 'schema' | 'reporting'
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState(JSON.parse(localStorage.getItem('current_chat')) || []);
   const [chatHistory, setChatHistory] = useState(JSON.parse(localStorage.getItem('chat_history')) || []);
@@ -132,7 +205,7 @@ function App() {
     }
   };
 
-  const handleSend = async (overrideText = null, editIndex = null) => {
+  const handleSend = async (overrideText = null, editIndex = null, originalQuestion = null) => {
     const textToSend = overrideText || question;
     if (!textToSend.trim()) return;
 
@@ -150,7 +223,7 @@ function App() {
       const loadingMsg = { role: 'bot', loading: true };
       newMessages = [userMsg, loadingMsg];
       
-      const chatTitle = textToSend.length > 30 ? textToSend.substring(0, 30) + "..." : textToSend;
+      const chatTitle = formatChatTitle(textToSend);
       const newChat = { id: requestId, title: chatTitle, messages: newMessages };
       setChatHistory(prev => [newChat, ...prev]);
       setCurrentChatId(requestId);
@@ -173,19 +246,17 @@ function App() {
       const res = await fetch('http://localhost:8000/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: textToSend }),
+        body: JSON.stringify({ 
+          question: textToSend,
+          original_question: originalQuestion
+        }),
         signal: controller.signal
       });
       const data = await res.json();
       
       const botMsg = { 
-        role: 'bot', 
-        sql: data.sql,
-        success: data.success,
-        results: data.results,
-        error: data.error,
-        attempts: data.attempts,
-        schema_tables: data.schema_tables
+        ...data,
+        role: 'bot'
       };
       
       // Always update history
@@ -314,9 +385,9 @@ function App() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2 style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <Code size={20} style={{color: 'var(--accent)'}} />
+            <Database size={20} style={{color: 'var(--accent)'}} />
             <span style={{color: 'var(--accent)'}}>Txt2SQL</span>
-            <span style={{color: 'white', marginLeft: '-4px'}}>Expert</span>
+            <span style={{color: theme === 'dark' ? '#cbd5e1' : '#64748b', marginLeft: '-4px'}}>Expert</span>
           </h2>
         </div>
 
@@ -327,6 +398,9 @@ function App() {
             </button>
             
             <h3>Navigation</h3>
+            <div className={`nav-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
+              <Layout size={18} /> Dashboard
+            </div>
             <div className={`nav-btn ${view === 'chat' ? 'active' : ''}`} onClick={() => setView('chat')}>
               <MessageSquare size={18} /> Chat
             </div>
@@ -334,7 +408,7 @@ function App() {
               <Database size={18} /> Explorer le schéma
             </div>
             <div className={`nav-btn ${view === 'reporting' ? 'active' : ''}`} onClick={() => setView('reporting')}>
-              <BarChart3 size={18} /> Reporting
+              <BarChart3 size={18} /> Custom Reports
             </div>
           </div>
 
@@ -408,13 +482,15 @@ function App() {
       <main className="main-content">
         <header className="header">
           <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+            {view === 'dashboard' && <Layout size={20} />}
             {view === 'chat' && <MessageSquare size={20} />}
             {view === 'schema' && <Database size={20} />}
             {view === 'reporting' && <BarChart3 size={20} />}
             <h1 style={{fontSize: '1.1rem'}}>
+              {view === 'dashboard' && "Tableau de Bord Analytique"}
               {view === 'chat' && "Chat Assistant"}
               {view === 'schema' && "Explorateur de Schéma"}
-              {view === 'reporting' && "Tableau de Bord Reporting"}
+              {view === 'reporting' && "Custom Reporting"}
             </h1>
           </div>
           <div className="text-secondary" style={{fontSize: '0.8rem'}}>
@@ -425,13 +501,7 @@ function App() {
         <div className="chat-area">
           {view === 'chat' && (
             <>
-              {messages.length === 0 && (
-                <div style={{textAlign: 'center', marginTop: '100px', color: 'var(--text-secondary)'}}>
-                  <MessageSquare size={48} style={{opacity: 0.2, marginBottom: '16px'}} />
-                  <p>Posez une question sur vos ventes, produits ou clients.</p>
-                  <p style={{fontSize: '0.8rem'}}>Ex: "Quels sont les 5 produits les plus vendus ?"</p>
-                </div>
-              )}
+              {messages.length === 0 && <WelcomeHero theme={theme} />}
               {messages.map((msg, idx) => (
                 msg.role === 'user' ? (
                   <div key={idx} className="message-wrapper user-message-wrapper" style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '20px'}}>
@@ -474,7 +544,7 @@ function App() {
                         <span style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Génération et exécution en cours...</span>
                       </div>
                     ) : (
-                      <BotResponse msg={msg} />
+                      <BotResponse msg={msg} onSuggestionClick={(text, originalText) => handleSend(text, null, originalText)} />
                     )}
                   </div>
                 )
@@ -523,6 +593,10 @@ function App() {
             </div>
           )}
 
+          {view === 'dashboard' && (
+            <DashboardView />
+          )}
+
           {view === 'reporting' && (
             <ReportingView />
           )}
@@ -555,7 +629,7 @@ function App() {
   );
 }
 
-function BotResponse({ msg }) {
+function BotResponse({ msg, onSuggestionClick }) {
   const [activeTab, setActiveTab] = useState('table');
   const [chartType, setChartType] = useState('bar');
   
@@ -566,6 +640,103 @@ function BotResponse({ msg }) {
   }) : [];
   
   const [selectedCol, setSelectedCol] = useState(numericCols.length > 0 ? numericCols[0] : (hasData ? msg.results.columns[1] : null));
+
+  if (msg.disambiguation) {
+    return (
+      <div className="disambiguation-container" style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--accent)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+          <MessageSquare size={20} style={{ color: 'var(--accent)', marginTop: '2px' }} />
+          <div>
+            <p style={{ margin: 0, fontWeight: '600', color: 'var(--text-primary)', lineHeight: '1.5' }}>
+              {msg.disambiguation.explication}
+            </p>
+          </div>
+        </div>
+        
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Vouliez-vous plutôt dire :</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {msg.disambiguation.suggestions && msg.disambiguation.suggestions.map((sug, idx) => (
+            <button 
+              key={idx} 
+              className="suggestion-btn"
+              onClick={() => onSuggestionClick && onSuggestionClick(sug, msg.question)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '0.95rem'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+            >
+              <ArrowRight size={16} style={{ color: 'var(--accent)', minWidth: '16px' }} />
+              {sug}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Ou corrigez votre question manuellement :</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input 
+              type="text" 
+              placeholder="Corriger ma question..." 
+              defaultValue={msg.question || ""}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value;
+                  if (val.trim()) onSuggestionClick && onSuggestionClick(val, msg.question);
+                }
+              }}
+            />
+            <button 
+              onClick={(e) => {
+                const input = e.currentTarget.previousSibling;
+                const val = input.value;
+                if (val.trim()) onSuggestionClick && onSuggestionClick(val, msg.question);
+              }}
+              style={{
+                padding: '0 16px',
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                transition: 'opacity 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+            >
+              Envoyer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (msg.error && !msg.success) {
     return (
@@ -900,6 +1071,259 @@ function SchemaRelationsView(props) {
   );
 }
 
+function DashboardView() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#6366f1'];
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/dashboard-stats');
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error("Error fetching dashboard stats:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: '20px' }}>
+        <RefreshCcw size={40} className="animate-spin text-accent" />
+        <p style={{ color: 'var(--text-secondary)' }}>Chargement de votre univers ERP...</p>
+      </div>
+    );
+  }
+
+  const cards = [
+    { title: 'Chiffre d\'Affaires', value: `${stats?.total_revenue?.toLocaleString()} DT`, icon: CreditCard, color: '#3b82f6', trend: '+12.5%', isUp: true },
+    { title: 'Commandes', value: stats?.total_orders?.toLocaleString(), icon: ShoppingBag, color: '#10b981', trend: '+5.2%', isUp: true },
+    { title: 'Clients', value: stats?.total_customers?.toLocaleString(), icon: Users, color: '#f59e0b', trend: '+2.1%', isUp: true },
+    { title: 'Produits', value: stats?.total_products?.toLocaleString(), icon: Database, color: '#8b5cf6', trend: '+0.8%', isUp: true },
+  ];
+
+  return (
+    <div className="dashboard-container">
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '-20px'}}>
+        <div>
+          <h1 style={{fontSize: '1.8rem', fontWeight: '800', marginBottom: '4px'}}>Tableau de Bord Analytique</h1>
+          <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Vue d'ensemble en temps réel de votre ERP</p>
+        </div>
+        <div style={{display: 'flex', gap: '12px'}}>
+          <div className="glass" style={{padding: '8px 16px', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border)'}}>
+            <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981'}}></div>
+            Base de données connectée
+          </div>
+          <button className="nav-btn" onClick={fetchStats} style={{margin: 0, padding: '0 12px'}}>
+            <RefreshCcw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="stats-grid">
+        {cards.map((card, i) => (
+          <div key={i} className="stat-card" style={{animationDelay: `${i * 0.1}s`}}>
+            <div className="stat-card-inner">
+              <div className="stat-icon" style={{ backgroundColor: `${card.color}15`, color: card.color }}>
+                <card.icon size={28} />
+              </div>
+              <div className="stat-info">
+                <p className="stat-title">{card.title}</p>
+                <h3 className="stat-value">{card.value}</h3>
+                <div className={`stat-trend ${card.isUp ? 'up' : 'down'}`}>
+                  {card.isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                  <span>{card.trend}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="dashboard-tabs">
+        <div className={`d-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>Vue d'ensemble</div>
+        <div className={`d-tab ${activeTab === 'sales' ? 'active' : ''}`} onClick={() => setActiveTab('sales')}>Ventes & Commandes</div>
+        <div className={`d-tab ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Inventaire & Stocks</div>
+      </div>
+
+      <div className="dashboard-content">
+        {activeTab === 'overview' && (
+          <div className="overview-grid">
+            <div className="chart-card">
+              <div className="chart-header">
+                <div>
+                  <h3>Évolution des Revenus</h3>
+                  <p>Performance mensuelle globale (DT)</p>
+                </div>
+              </div>
+              <div style={{ height: '350px', width: '100%' }}>
+                <ResponsiveContainer>
+                  <LineChart data={stats?.monthly_sales}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
+                    />
+                    <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={4} dot={{ r: 4, fill: 'var(--accent)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0, fill: 'var(--accent)' }} animationDuration={1500} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-header">
+                <div>
+                  <h3>Top 5 Produits</h3>
+                  <p>Produits les plus rentables</p>
+                </div>
+              </div>
+              <div className="top-products-list">
+                {stats?.top_products?.map((product, idx) => (
+                  <div key={idx} className="top-product-item">
+                    <div className="product-rank">{idx + 1}</div>
+                    <div className="product-details">
+                      <div className="product-name">{product.name}</div>
+                      <div className="product-cat">{product.category}</div>
+                    </div>
+                    <div className="product-stats">
+                      <div className="product-value">{product.revenue?.toLocaleString()} DT</div>
+                      <div className="product-count">{product.count} vendus</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sales' && (
+          <div className="overview-grid">
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3>Ventes Récentes</h3>
+                <p>Les 10 dernières transactions clients</p>
+              </div>
+              <div className="top-products-list">
+                {stats?.recent_sales?.map((sale, idx) => (
+                  <div key={idx} className="top-product-item">
+                    <div className="product-rank" style={{background: 'var(--bg-primary)'}}><ShoppingBag size={14}/></div>
+                    <div className="product-details">
+                      <div className="product-name">{sale.client}</div>
+                      <div className="product-cat">Commande #{sale.id} • {sale.date}</div>
+                    </div>
+                    <div className="product-stats">
+                      <div className="product-value">{sale.amount?.toLocaleString()} DT</div>
+                      <div className={`product-count`} style={{color: sale.status === 'Livrée' ? '#10b981' : '#f59e0b'}}>{sale.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3>Ventes par Catégorie</h3>
+                <p>Volume de produits par secteur</p>
+              </div>
+              <div style={{ height: '350px', width: '100%' }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={stats?.category_distribution} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value" stroke="none">
+                      {stats?.category_distribution?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '20px'}}>
+                {stats?.category_distribution?.slice(0, 4).map((cat, i) => (
+                  <div key={i} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem'}}>
+                    <div style={{width: '8px', height: '8px', borderRadius: '2px', background: COLORS[i % COLORS.length]}}></div>
+                    <span style={{color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{cat.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'inventory' && (
+          <div className="overview-grid">
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3>Stock par Catégorie</h3>
+                <p>Niveau d'inventaire disponible</p>
+              </div>
+              <div style={{ height: '400px', width: '100%' }}>
+                <ResponsiveContainer>
+                  <BarChart layout="vertical" data={stats?.category_distribution}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                    <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} width={120} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                    <Bar dataKey="value" fill="var(--accent)" radius={[0, 10, 10, 0]} barSize={30}>
+                       {stats?.category_distribution?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3 style={{color: '#ef4444'}}>Alertes Stock Bas</h3>
+                <p>Produits nécessitant un réapprovisionnement</p>
+              </div>
+              <div className="top-products-list">
+                {stats?.stock_alerts?.length > 0 ? stats.stock_alerts.map((item, idx) => (
+                  <div key={idx} className="top-product-item" style={{borderColor: 'rgba(239, 68, 68, 0.2)'}}>
+                    <div className="product-rank" style={{background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444'}}><ArrowDownRight size={14}/></div>
+                    <div className="product-details">
+                      <div className="product-name">{item.name}</div>
+                      <div className="product-cat">{item.warehouse}</div>
+                    </div>
+                    <div className="product-stats">
+                      <div className="product-value" style={{color: '#ef4444'}}>{item.qty} unités</div>
+                      <div className="product-count">En stock</div>
+                    </div>
+                  </div>
+                )) : (
+                  <div style={{textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)'}}>
+                    <div style={{color: '#10b981', marginBottom: '12px'}}>✅ Aucun stock bas</div>
+                    <p>Tous les produits sont au-dessus du seuil critique.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ReportingView() {
   const [reports, setReports] = useState(() => {
     const saved = localStorage.getItem('dashboard_reports');
@@ -977,7 +1401,7 @@ function ReportingView() {
         <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
           <input 
             type="text" 
-            placeholder="Titre du widget (ex: Ventes Mensuelles)" 
+            placeholder="Titre du widget (ex: Ventes Mensuelles par Région)" 
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             style={{width: '100%', padding: '10px 14px', fontSize: '0.95rem'}}
@@ -986,7 +1410,7 @@ function ReportingView() {
           <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
             <input 
               type="text" 
-              placeholder="Posez votre question (ex: Quels sont les revenus par mois en 2025 ?)" 
+              placeholder="Posez votre question (ex: Quels sont les revenus par gouvernorat en 2025 ?)" 
               value={newQuery}
               onChange={(e) => setNewQuery(e.target.value)}
               style={{flex: 1, minWidth: '300px', padding: '10px 14px'}}
@@ -1000,6 +1424,8 @@ function ReportingView() {
               <option value="bar">Histogramme</option>
               <option value="line">Courbe</option>
               <option value="pie">Camembert</option>
+              <option value="area">Zone (Area)</option>
+              <option value="radar">Radar (Kiviat)</option>
             </select>
             <button 
               className="nav-btn active" 
@@ -1015,13 +1441,13 @@ function ReportingView() {
       </div>
 
       {/* Grid */}
-      <div className="reporting-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px'}}>
+      <div className="reporting-grid">
         {reports.map(report => (
-          <div key={report.id} className="message bot" style={{padding: '24px', margin: 0, position: 'relative', display: 'flex', flexDirection: 'column'}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px'}}>
+          <div key={report.id} className="report-widget-card">
+            <div className="report-widget-header">
               <div>
-                <h3 style={{fontSize: '1rem', fontWeight: '600', marginBottom: '4px'}}>{report.title}</h3>
-                <p style={{fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0}}>{report.question}</p>
+                <h3 className="report-widget-title">{report.title}</h3>
+                <p className="report-widget-question">{report.question}</p>
               </div>
               <div style={{display: 'flex', gap: '8px'}}>
                 <button 
@@ -1029,6 +1455,7 @@ function ReportingView() {
                   onClick={() => runReport(report.id, report.question)}
                   disabled={loading[report.id]}
                   title="Actualiser"
+                  style={{width: '32px', height: '32px', borderRadius: '8px'}}
                 >
                   {loading[report.id] ? <RefreshCcw size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
                 </button>
@@ -1036,30 +1463,31 @@ function ReportingView() {
                   className="action-btn delete" 
                   onClick={() => deleteReport(report.id)}
                   title="Supprimer"
+                  style={{width: '32px', height: '32px', borderRadius: '8px'}}
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
             </div>
 
-            <div style={{flex: 1, minHeight: '250px'}}>
+            <div className="report-widget-content">
               {!report.data && !loading[report.id] && (
-                <div style={{height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', borderRadius: '8px', color: 'var(--text-secondary)'}}>
+                <div style={{height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px dashed var(--border)', color: 'var(--text-secondary)'}}>
                   Cliquez sur actualiser pour générer
                 </div>
               )}
 
               {loading[report.id] && (
-                <div style={{height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <div style={{height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border)'}}>
                   <div style={{textAlign: 'center'}}>
-                    <RefreshCcw size={24} className="animate-spin" style={{color: 'var(--accent)', marginBottom: '12px'}} />
-                    <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Génération SQL en cours...</p>
+                    <RefreshCcw size={28} className="animate-spin" style={{color: 'var(--accent)', marginBottom: '16px'}} />
+                    <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500'}}>Exécution de la requête SQL...</p>
                   </div>
                 </div>
               )}
 
               {report.data && report.data.success && (
-                <div style={{height: '250px'}}>
+                <div style={{height: '360px'}}>
                   <ResponsiveContainer width="100%" height="100%">
                     {report.type === 'bar' ? (
                       <BarChart data={report.data.results.rows.map(row => {
@@ -1067,13 +1495,13 @@ function ReportingView() {
                         report.data.results.columns.forEach((col, i) => obj[col] = row[i]);
                         return obj;
                       })}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis dataKey={report.data.results.columns[0]} stroke="#888" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#888" fontSize={10} tickLine={false} axisLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                        <XAxis dataKey={report.data.results.columns[0]} stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
                         <Tooltip 
-                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px'}} 
+                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)'}} 
                         />
-                        <Bar dataKey={report.data.results.columns[1]} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey={report.data.results.columns[1]} fill="#2c75ff" radius={[6, 6, 0, 0]} />
                       </BarChart>
                     ) : report.type === 'pie' ? (
                       <PieChart>
@@ -1081,9 +1509,9 @@ function ReportingView() {
                           data={report.data.results.rows.map(row => ({ name: row[0], value: row[1] }))}
                           cx="50%"
                           cy="50%"
-                          outerRadius={80}
-                          innerRadius={50}
-                          paddingAngle={5}
+                          outerRadius={110}
+                          innerRadius={70}
+                          paddingAngle={4}
                           fill="#8884d8"
                           dataKey="value"
                           label
@@ -1092,19 +1520,49 @@ function ReportingView() {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}} />
                       </PieChart>
+                    ) : report.type === 'area' ? (
+                      <AreaChart data={report.data.results.rows.map(row => {
+                        const obj = {};
+                        report.data.results.columns.forEach((col, i) => obj[col] = row[i]);
+                        return obj;
+                      })}>
+                        <defs>
+                          <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                        <XAxis dataKey={report.data.results.columns[0]} stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}} />
+                        <Area type="monotone" dataKey={report.data.results.columns[1]} stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorArea)" />
+                      </AreaChart>
+                    ) : report.type === 'radar' ? (
+                      <RadarChart cx="50%" cy="50%" outerRadius="75%" data={report.data.results.rows.map(row => {
+                        const obj = {};
+                        report.data.results.columns.forEach((col, i) => obj[col] = row[i]);
+                        return obj;
+                      })}>
+                        <PolarGrid stroke="#222" />
+                        <PolarAngleAxis dataKey={report.data.results.columns[0]} tick={{ fill: '#888', fontSize: 11 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fill: '#666', fontSize: 9 }} />
+                        <Radar name="Valeur" dataKey={report.data.results.columns[1]} stroke="#ec4899" fill="#ec4899" fillOpacity={0.4} />
+                        <Tooltip contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}} />
+                      </RadarChart>
                     ) : (
                       <LineChart data={report.data.results.rows.map(row => {
                         const obj = {};
                         report.data.results.columns.forEach((col, i) => obj[col] = row[i]);
                         return obj;
                       })}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis dataKey={report.data.results.columns[0]} stroke="#888" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#888" fontSize={10} tickLine={false} axisLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                        <XAxis dataKey={report.data.results.columns[0]} stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
                         <Tooltip 
-                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '8px'}} 
+                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}} 
                         />
                         <Line type="monotone" dataKey={report.data.results.columns[1]} stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
                       </LineChart>
@@ -1114,10 +1572,10 @@ function ReportingView() {
               )}
 
               {report.data && !report.data.success && (
-                <div style={{height: '250px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', color: '#ef4444', padding: '20px', textAlign: 'center'}}>
-                  <X size={24} style={{marginBottom: '12px'}} />
-                  <p style={{fontSize: '0.9rem', fontWeight: '600', margin: '0 0 8px 0'}}>Erreur de génération</p>
-                  <p style={{fontSize: '0.75rem', opacity: 0.8}}>{report.data.error}</p>
+                <div style={{height: '360px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(239, 68, 68, 0.03)', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: '12px', color: '#ef4444', padding: '24px', textAlign: 'center'}}>
+                  <X size={28} style={{marginBottom: '16px'}} />
+                  <p style={{fontSize: '0.95rem', fontWeight: '700', margin: '0 0 8px 0'}}>Erreur de génération</p>
+                  <p style={{fontSize: '0.8rem', opacity: 0.8, maxWidth: '80%'}}>{report.data.error}</p>
                 </div>
               )}
             </div>

@@ -312,7 +312,7 @@ def build_faiss_index():
         description = semantics.get("description", table)
 
         content = (
-            f"TABLE NAME: {table}\n"
+            f"passage: TABLE NAME: {table}\n"
             f"TABLE DESCRIPTION: {description}\n"
             f"SYNONYMS AND KEYWORDS: {keywords}\n"
             f"COLUMNS FOR TABLE {table}: {', '.join(col_descriptions)}\n"
@@ -382,7 +382,7 @@ def build_faiss_index():
         if path:
             joins_sql = "\n".join(path)
             content = (
-                f"Pour relier {start} et {end}:\n"
+                f"passage: Pour relier {start} et {end}:\n"
                 f"Chemin: {start} -> {end}\n"
                 f"Jointures SQL:\n{joins_sql}\n"
             )
