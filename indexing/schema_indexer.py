@@ -326,7 +326,6 @@ def build_faiss_index():
                 ft = rel["foreign_table"]
                 content += (
                     f"  {table}.{rel['local_col']} -> {ft}.{rel['foreign_col']}\n"
-                    f"  SQL: JOIN {ft} ON {table}.{rel['local_col']} = {ft}.{rel['foreign_col']}\n"
                 )
 
         # Tables accessibles via jointures (voisins dans le graphe)
@@ -382,9 +381,7 @@ def build_faiss_index():
         if path:
             joins_sql = "\n".join(path)
             content = (
-                f"passage: Pour relier {start} et {end}:\n"
-                f"Chemin: {start} -> {end}\n"
-                f"Jointures SQL:\n{joins_sql}\n"
+                f"passage: Chemin de liaison entre les tables {start} et {end}."
             )
             documents.append(Document(
                 page_content=content,

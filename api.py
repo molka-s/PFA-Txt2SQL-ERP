@@ -34,6 +34,24 @@ def load_corrections_cache() -> dict:
             return {}
     return {}
 
+def levenshtein_distance(s1: str, s2: str) -> int:
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+        
+    return previous_row[-1]
+
 def save_to_corrections_cache(new_corrections: dict):
     cache = load_corrections_cache()
     updated = False
@@ -44,6 +62,17 @@ def save_to_corrections_cache(new_corrections: dict):
             # Sécurité : ne jamais enregistrer d'éléments techniques ou SQL dans le cache orthographique
             if any(char in k_clean or char in v_clean for char in "._()[]=<>*"):
                 continue
+            # Sécurité : ne pas corriger les nombres/dates (ex: "2024" -> "annee")
+            if k_clean.isdigit() or v_clean.isdigit():
+                print(f"[Self-Learning] Rejet de la correction '{k_clean}' -> '{v_clean}' car l'un des termes est un nombre.")
+                continue
+            # Sécurité : vérifier que la distance de Levenshtein n'est pas trop grande (c'est une correction orthographique, pas une traduction sémantique)
+            dist = levenshtein_distance(k_clean, v_clean)
+            max_allowed_dist = max(2, len(k_clean) // 3)
+            if dist > max_allowed_dist:
+                print(f"[Self-Learning] Rejet de la correction '{k_clean}' -> '{v_clean}' car la distance de Levenshtein ({dist}) dépasse le maximum autorisé ({max_allowed_dist})")
+                continue
+                
             if cache.get(k_clean) != v_clean:
                 cache[k_clean] = v_clean
                 updated = True
@@ -92,24 +121,6 @@ def preprocess_query(question: str) -> str:
     if result_q != question:
         print(f"[Self-Learning] Requête corrigée automatiquement via le cache : '{question}' -> '{result_q}'")
     return result_q
-
-def levenshtein_distance(s1: str, s2: str) -> int:
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-    if len(s2) == 0:
-        return len(s1)
-    
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-        
-    return previous_row[-1]
 
 def learn_from_manual_correction(original: str, corrected: str):
     if not original or not corrected or original == corrected:
@@ -244,11 +255,9 @@ async def ask_question(req: QuestionRequest):
                 needs_disambiguation = True
                 error_msg = "Je ne trouve pas cette information dans la base. Une entité semble mal orthographiée ou inexistante."
             else:
-                # Si le résultat est vide (0 ligne)
-                rows = result.get("results", {}).get("rows", [])
-                if len(rows) == 0:
-                    needs_disambiguation = True
-                    error_msg = "La requête a retourné 0 résultat. Le filtre ou l'entité n'existe probablement pas."
+                # Si le résultat est vide (0 ligne), on ne déclenche pas la désambiguïsation
+                # car une requête valide peut légitimement retourner 0 résultat.
+                pass
         
         if needs_disambiguation:
             schema_context = result.get("schema_tables", "Schéma non disponible")
@@ -374,6 +383,19 @@ async def get_dashboard_stats():
         cur.execute('SELECT COUNT(*) FROM clients')
         stats['total_customers'] = cur.fetchone()[0]
 
+        # 1b. Calcul des dépenses et bénéfice net
+        cur.execute('SELECT SUM(montant) FROM depenses_fixes')
+        fixed_expenses = float(cur.fetchone()[0] or 0)
+        
+        cur.execute('SELECT SUM(salaire) FROM employes')
+        salaries = float(cur.fetchone()[0] or 0)
+        
+        cur.execute('SELECT SUM(montant_total) FROM achats_fournisseurs')
+        purchases = float(cur.fetchone()[0] or 0)
+        
+        stats['total_expenses'] = fixed_expenses + salaries + purchases
+        stats['net_profit'] = stats['total_revenue'] - stats['total_expenses']
+
         # 2. Évolution Mensuelle
         cur.execute("""
             SELECT TO_CHAR(date_vente, 'Mon') as month, SUM(total_ttc) as total 
@@ -416,7 +438,7 @@ async def get_dashboard_stats():
         """)
         stats['recent_sales'] = [{"id": r[0], "client": r[1], "date": str(r[2]), "amount": float(r[3]), "status": r[4]} for r in cur.fetchall()]
 
-        # 6. Alertes Stock Bas (Moins de 10 unités)
+        # 6. Alertes Stock Bas (Moins de 20 unités)
         cur.execute("""
             SELECT p.nom_produit, s.quantite_disponible, d.nom_depot
             FROM stocks s
@@ -427,6 +449,50 @@ async def get_dashboard_stats():
             LIMIT 8
         """)
         stats['stock_alerts'] = [{"name": r[0], "qty": r[1], "warehouse": r[2]} for r in cur.fetchall()]
+
+        # 7. Ventes par Région (Gouvernorats)
+        cur.execute("""
+            SELECT vt.gouvernorat, SUM(cv.total_ttc) as total
+            FROM commandes_ventes cv
+            JOIN clients c ON cv.client_id = c.id
+            JOIN villes_tunisie vt ON c.ville_id = vt.id
+            GROUP BY vt.gouvernorat
+            ORDER BY total DESC
+            LIMIT 8
+        """)
+        stats['sales_by_region'] = [{"name": r[0], "value": float(r[1])} for r in cur.fetchall()]
+
+        # 8. Clients les plus Fidèles (Top 5)
+        cur.execute("""
+            SELECT c.nom || ' ' || c.prenom, fp.points_accumules, COALESCE(SUM(cv.total_ttc), 0)
+            FROM clients c
+            JOIN fidelite_points fp ON c.id = fp.client_id
+            LEFT JOIN commandes_ventes cv ON c.id = cv.client_id
+            GROUP BY c.id, c.nom, c.prenom, fp.points_accumules
+            ORDER BY fp.points_accumules DESC LIMIT 5
+        """)
+        stats['loyal_customers'] = [{"name": r[0], "points": r[1], "spent": float(r[2])} for r in cur.fetchall()]
+
+        # 9. Modes de paiement (Répartition)
+        cur.execute("""
+            SELECT mp.type_paiement, SUM(p.montant) as total
+            FROM paiements p
+            JOIN modes_paiement mp ON p.mode_id = mp.id
+            GROUP BY mp.type_paiement
+            ORDER BY total DESC
+        """)
+        stats['payment_methods'] = [{"name": r[0], "value": float(r[1])} for r in cur.fetchall()]
+
+        # 10. Produits les mieux notés (Top 5)
+        cur.execute("""
+            SELECT p.nom_produit, ROUND(AVG(ap.note), 1) as rating, COUNT(ap.id) as count
+            FROM avis_produits ap
+            JOIN produits p ON ap.produit_id = p.id
+            GROUP BY p.nom_produit
+            ORDER BY rating DESC, count DESC
+            LIMIT 5
+        """)
+        stats['top_rated_products'] = [{"name": r[0], "rating": float(r[1]), "count": r[2]} for r in cur.fetchall()]
 
         cur.close()
         conn.close()

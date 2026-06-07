@@ -76,11 +76,16 @@ def get_relevant_schema(question: str, k: int = None) -> str:
     PRIMARY_THRESHOLD = 0.99 
     SECONDARY_THRESHOLD = 0.99
 
+    promo_keywords = ["promo", "solde", "remise", "reduction", "réduction", "offre", "black friday", "ramadan", "fête des mères", "fete des meres", "aïd", "aid", "destockage", "déstockage"]
+    has_promo_in_question = any(k in q_lower for k in promo_keywords)
+
     for doc, score in docs_and_scores:
         table = doc.metadata.get("table")
         if table:
             table_lower = table.lower()
             if table_lower in seen_tables: continue
+            if table_lower in ["promotions", "produits_promos"] and not has_promo_in_question:
+                continue
             seen_tables.add(table_lower)
         
         # Filtrage par score (très tolérant pour ne rien perdre d'utile)
@@ -162,5 +167,10 @@ def get_relevant_tables(question: str, k: int = None) -> list[str]:
         tables.add("depots")
     if any(kw in q_lower for kw in ["produit", "article", "reference", "référence", "marque", "categorie", "catégorie"]):
         tables.add("produits")
+        
+    promo_keywords = ["promo", "solde", "remise", "reduction", "réduction", "offre", "black friday", "ramadan", "fête des mères", "fete des meres", "aïd", "aid", "destockage", "déstockage"]
+    has_promo_in_question = any(k in q_lower for k in promo_keywords)
+    if not has_promo_in_question:
+        tables = {t for t in tables if t not in ["promotions", "produits_promos"]}
             
     return list(tables)

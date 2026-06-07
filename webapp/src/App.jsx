@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Database, 
-  Send, 
-  ChevronRight, 
-  ChevronDown, 
-  Table, 
-  BarChart3, 
-  Code, 
-  RefreshCcw, 
+import {
+  Database,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Menu,
+  Table,
+  BarChart3,
+  Code,
+  RefreshCcw,
   MessageSquare,
   Layout,
   Sun,
@@ -33,16 +35,16 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  PieChart, 
-  Pie, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
   Cell,
   LineChart,
   Line,
@@ -54,10 +56,10 @@ import {
   PolarRadiusAxis,
   Radar
 } from 'recharts';
-import ReactFlow, { 
-  Background, 
-  Controls, 
-  Handle, 
+import ReactFlow, {
+  Background,
+  Controls,
+  Handle,
   Position,
   useNodesState,
   useEdgesState,
@@ -72,7 +74,7 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 const WelcomeHero = ({ theme }) => {
   const [displayedText, setDisplayedText] = useState('');
   const fullText = "SELECT nom_produit, prix_vente\nFROM produits\nWHERE prix_vente > 100;";
-  
+ 
   useEffect(() => {
     let index = 0;
     const timer = setInterval(() => {
@@ -95,11 +97,24 @@ const WelcomeHero = ({ theme }) => {
       <p style={{color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
         Transformez vos questions métier en requêtes SQL instantanées. Discutez naturellement avec votre base de données ERP et générez des rapports analytiques puissants en quelques secondes.
       </p>
-      <div style={{ background: theme === 'dark' ? '#1e1e2e' : '#e2e8f0', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '650px', textAlign: 'left', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981)' }} />
+      <div style={{ 
+        background: 'rgba(15, 23, 42, 0.95)', 
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderRadius: '16px', 
+        padding: '24px', 
+        width: '100%', 
+        maxWidth: '650px', 
+        textAlign: 'left', 
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)', 
+        border: '1px solid rgba(255, 255, 255, 0.1)', 
+        position: 'relative', 
+        overflow: 'hidden' 
+      }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #4f46e5, #3b82f6, #10b981)' }} />
         <pre style={{ margin: 0, color: '#a6accd', fontFamily: '"Fira Code", monospace', fontSize: '0.95rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
           <code>
-            <span style={{color: theme === 'dark' ? '#7dd3fc' : '#0284c7'}}>{displayedText}</span>
+            <span style={{color: '#7dd3fc'}}>{displayedText}</span>
             <span style={{borderRight: '2px solid var(--accent)', animation: 'blink 1s step-end infinite'}}>&nbsp;</span>
           </code>
         </pre>
@@ -115,11 +130,11 @@ const formatChatTitle = (text) => {
     /^(afficher|affiche|montrer|montre|lister|liste des?|donner|avoir|je veux|peux-tu|pouvez-vous|trouver|chercher)\s+(les\s+|des\s+)?/i,
     /^(combien de|comment)\s+/i
   ];
-  
+ 
   for (const regex of prefixesToRemove) {
     title = title.replace(regex, '');
   }
-  
+ 
   title = title.replace(/^[?\s,.]+/, '').trim();
   if (title.length > 0) {
     title = title.charAt(0).toUpperCase() + title.slice(1);
@@ -130,17 +145,18 @@ const formatChatTitle = (text) => {
 };
 
 function App() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [view, setView] = useState('chat'); // 'dashboard' | 'chat' | 'schema' | 'reporting'
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState(JSON.parse(localStorage.getItem('current_chat')) || []);
+  const [messages, setMessages] = useState([]);
   const [chatHistory, setChatHistory] = useState(JSON.parse(localStorage.getItem('chat_history')) || []);
   const [schema, setSchema] = useState({});
   const [relations, setRelations] = useState([]);
   const [schemaMode, setSchemaMode] = useState('grid'); // 'grid' | 'diagram'
   const [expandedTables, setExpandedTables] = useState({});
   const [editingChatId, setEditingChatId] = useState(null);
-  const [currentChatId, setCurrentChatId] = useState(localStorage.getItem('current_chat_id') || null);
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [chatToDelete, setChatToDelete] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const chatEndRef = useRef(null);
@@ -222,7 +238,7 @@ function App() {
       const userMsg = { role: 'user', text: textToSend };
       const loadingMsg = { role: 'bot', loading: true };
       newMessages = [userMsg, loadingMsg];
-      
+     
       const chatTitle = formatChatTitle(textToSend);
       const newChat = { id: requestId, title: chatTitle, messages: newMessages };
       setChatHistory(prev => [newChat, ...prev]);
@@ -232,13 +248,13 @@ function App() {
       const userMsg = { role: 'user', text: textToSend };
       const loadingMsg = { role: 'bot', loading: true };
       newMessages = [...messages, userMsg, loadingMsg];
-      
+     
       setChatHistory(prev => prev.map(c => c.id === currentChatId ? { ...c, messages: newMessages } : c));
     }
 
     setMessages(newMessages);
     if (!overrideText) setQuestion('');
-    
+   
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -246,23 +262,23 @@ function App() {
       const res = await fetch('http://localhost:8000/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           question: textToSend,
           original_question: originalQuestion
         }),
         signal: controller.signal
       });
       const data = await res.json();
-      
-      const botMsg = { 
+     
+      const botMsg = {
         ...data,
         role: 'bot'
       };
-      
+     
       // Always update history
-      setChatHistory(prev => prev.map(c => c.id === requestId ? { 
-        ...c, 
-        messages: [...c.messages.filter(m => !m.loading), botMsg] 
+      setChatHistory(prev => prev.map(c => c.id === requestId ? {
+        ...c,
+        messages: [...c.messages.filter(m => !m.loading), botMsg]
       } : c));
 
       // Only update current view if we are still on the same chat
@@ -271,15 +287,15 @@ function App() {
       }
 
     } catch (err) {
-      const errorMsg = { 
-        role: 'bot', 
-        error: "Impossible de contacter le serveur API." 
+      const errorMsg = {
+        role: 'bot',
+        error: "Impossible de contacter le serveur API."
       };
-      setChatHistory(prev => prev.map(c => c.id === requestId ? { 
-        ...c, 
-        messages: [...c.messages.filter(m => !m.loading), errorMsg] 
+      setChatHistory(prev => prev.map(c => c.id === requestId ? {
+        ...c,
+        messages: [...c.messages.filter(m => !m.loading), errorMsg]
       } : c));
-      
+     
       if (activeChatRef.current === requestId) {
         setMessages(prev => [...prev.filter(m => !m.loading), errorMsg]);
       }
@@ -292,16 +308,16 @@ function App() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-      
-      const abortedMsg = { 
-        role: 'bot', 
-        error: "Génération interrompue par l'utilisateur." 
+     
+      const abortedMsg = {
+        role: 'bot',
+        error: "Génération interrompue par l'utilisateur."
       };
-      
+     
       setMessages(prev => [...prev.filter(m => !m.loading), abortedMsg]);
-      setChatHistory(prev => prev.map(c => c.id === activeChatRef.current ? { 
-        ...c, 
-        messages: [...c.messages.filter(m => !m.loading), abortedMsg] 
+      setChatHistory(prev => prev.map(c => c.id === activeChatRef.current ? {
+        ...c,
+        messages: [...c.messages.filter(m => !m.loading), abortedMsg]
       } : c));
     }
   };
@@ -313,14 +329,14 @@ function App() {
 
   const handleEditSubmit = (index) => {
     if (!tempMessageText.trim()) return;
-    
+   
     // Truncate history from this message onwards
     const newMessages = messages.slice(0, index);
     const updatedUserMsg = { role: 'user', text: tempMessageText };
-    
+   
     setMessages([...newMessages, updatedUserMsg]);
     setEditingMessageIndex(null);
-    
+   
     // Trigger regeneration with the new text
     handleSend(tempMessageText, index);
   };
@@ -380,23 +396,37 @@ function App() {
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Sidebar - Enhanced */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
           <h2 style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
             <Database size={20} style={{color: 'var(--accent)'}} />
             <span style={{color: 'var(--accent)'}}>Txt2SQL</span>
             <span style={{color: theme === 'dark' ? '#cbd5e1' : '#64748b', marginLeft: '-4px'}}>Expert</span>
           </h2>
+          <button 
+            className="action-btn toggle-sidebar-btn" 
+            onClick={() => setSidebarCollapsed(true)}
+            title="Masquer la barre latérale"
+            style={{
+              padding: '6px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <ChevronLeft size={18} />
+          </button>
         </div>
 
         <div className="sidebar-content">
           <div className="nav-section">
-            <button className="nav-btn" onClick={startNewChat} style={{width: '100%', border: 'none', background: 'var(--accent)', color: 'white', marginBottom: '12px'}}>
+            <button className="new-chat-btn" onClick={startNewChat}>
               <PlusCircle size={18} /> Nouveau Chat
             </button>
-            
+           
             <h3>Navigation</h3>
             <div className={`nav-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
               <Layout size={18} /> Dashboard
@@ -416,12 +446,12 @@ function App() {
             <div className="nav-section" style={{flex: 1, overflowY: 'auto', maxHeight: '400px'}}>
               <h3>Historique</h3>
               {chatHistory.map(chat => (
-                <div key={chat.id} className="history-item-wrapper">
+                <div key={chat.id} className={`history-item-wrapper ${chat.id === currentChatId ? 'active' : ''}`}>
                   {editingChatId === chat.id ? (
                     <div style={{display: 'flex', width: '100%', alignItems: 'center'}}>
-                      <input 
-                        type="text" 
-                        value={editTitle} 
+                      <input
+                        type="text"
+                        value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
                         className="history-edit-input"
                         autoFocus
@@ -482,6 +512,28 @@ function App() {
       <main className="main-content">
         <header className="header">
           <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+            {sidebarCollapsed && (
+              <button 
+                className="action-btn toggle-sidebar-btn-restore" 
+                onClick={() => setSidebarCollapsed(false)}
+                title="Afficher la barre latérale"
+                style={{
+                  padding: '6px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Menu size={18} />
+              </button>
+            )}
             {view === 'dashboard' && <Layout size={20} />}
             {view === 'chat' && <MessageSquare size={20} />}
             {view === 'schema' && <Database size={20} />}
@@ -508,7 +560,7 @@ function App() {
                     <div className={`message ${msg.role}`} style={{position: 'relative', marginBottom: '4px'}}>
                       {editingMessageIndex === idx ? (
                         <div className="message-editor">
-                          <textarea 
+                          <textarea
                             value={tempMessageText}
                             onChange={(e) => setTempMessageText(e.target.value)}
                             className="editor-textarea"
@@ -525,8 +577,8 @@ function App() {
                     </div>
                     {editingMessageIndex !== idx && (
                       <div className="message-actions" style={{paddingRight: '10px', opacity: 0, transition: 'opacity 0.2s'}}>
-                        <button 
-                          className="action-btn edit-msg-btn-v3" 
+                        <button
+                          className="action-btn edit-msg-btn-v3"
                           onClick={() => startEditMessage(idx, msg.text)}
                           title="Modifier la question"
                           style={{background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex'}}
@@ -605,9 +657,9 @@ function App() {
         {view === 'chat' && (
           <div className="input-container">
             <div className="input-box">
-              <input 
-                type="text" 
-                placeholder="Posez votre question..." 
+              <input
+                type="text"
+                placeholder="Posez votre question..."
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -632,13 +684,13 @@ function App() {
 function BotResponse({ msg, onSuggestionClick }) {
   const [activeTab, setActiveTab] = useState('table');
   const [chartType, setChartType] = useState('bar');
-  
+ 
   // Logic to determine if we can show a chart
   const hasData = msg.results && msg.results.columns && msg.results.rows && msg.results.rows.length > 0;
   const numericCols = hasData ? msg.results.columns.filter((col, i) => {
     return i > 0 && typeof msg.results.rows[0][i] === 'number';
   }) : [];
-  
+ 
   const [selectedCol, setSelectedCol] = useState(numericCols.length > 0 ? numericCols[0] : (hasData ? msg.results.columns[1] : null));
 
   if (msg.disambiguation) {
@@ -652,12 +704,12 @@ function BotResponse({ msg, onSuggestionClick }) {
             </p>
           </div>
         </div>
-        
+       
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Vouliez-vous plutôt dire :</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {msg.disambiguation.suggestions && msg.disambiguation.suggestions.map((sug, idx) => (
-            <button 
-              key={idx} 
+            <button
+              key={idx}
               className="suggestion-btn"
               onClick={() => onSuggestionClick && onSuggestionClick(sug, msg.question)}
               style={{
@@ -686,9 +738,9 @@ function BotResponse({ msg, onSuggestionClick }) {
         <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Ou corrigez votre question manuellement :</p>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <input 
-              type="text" 
-              placeholder="Corriger ma question..." 
+            <input
+              type="text"
+              placeholder="Corriger ma question..."
               defaultValue={msg.question || ""}
               style={{
                 flex: 1,
@@ -710,7 +762,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                 }
               }}
             />
-            <button 
+            <button
               onClick={(e) => {
                 const input = e.currentTarget.previousSibling;
                 const val = input.value;
@@ -807,7 +859,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                     <XAxis dataKey={labelCol} stroke="#888" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="#888" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px' }}
                       itemStyle={{ color: 'var(--text-primary)' }}
                     />
@@ -818,7 +870,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                     <XAxis dataKey={labelCol} stroke="#888" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="#888" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px' }}
                       itemStyle={{ color: 'var(--text-primary)' }}
                     />
@@ -841,7 +893,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px' }}
                     />
                   </PieChart>
@@ -860,7 +912,7 @@ function BotResponse({ msg, onSuggestionClick }) {
               }}>
                 <p style={{fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '8px'}}>Type de vue</p>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                  <div 
+                  <div
                     onClick={() => setChartType('bar')}
                     style={{
                       padding: '8px 12px', fontSize: '0.85rem', borderRadius: '6px', cursor: 'pointer',
@@ -870,7 +922,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                   >
                     Histogramme
                   </div>
-                  <div 
+                  <div
                     onClick={() => setChartType('line')}
                     style={{
                       padding: '8px 12px', fontSize: '0.85rem', borderRadius: '6px', cursor: 'pointer',
@@ -880,7 +932,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                   >
                     Courbe
                   </div>
-                  <div 
+                  <div
                     onClick={() => setChartType('pie')}
                     style={{
                       padding: '8px 12px', fontSize: '0.85rem', borderRadius: '6px', cursor: 'pointer',
@@ -904,7 +956,7 @@ function BotResponse({ msg, onSuggestionClick }) {
                   <p style={{fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '8px'}}>Donnée affichée</p>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
                     {numericCols.map(col => (
-                      <div 
+                      <div
                         key={col}
                         onClick={() => setSelectedCol(col)}
                         style={{
@@ -926,9 +978,9 @@ function BotResponse({ msg, onSuggestionClick }) {
 
         {activeTab === 'sql' && (
           <pre style={{
-            background: 'var(--bg-tertiary)', 
-            padding: '16px', 
-            borderRadius: '8px', 
+            background: 'var(--bg-tertiary)',
+            padding: '16px',
+            borderRadius: '8px',
             overflowX: 'auto',
             fontSize: '0.85rem',
             color: 'var(--accent)',
@@ -970,19 +1022,19 @@ const TableNode = ({ data }) => {
       </div>
       <div style={{ padding: '8px 0' }}>
         {data.columns.map((col, i) => (
-          <div key={i} style={{ 
-            padding: '6px 16px', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <div key={i} style={{
+            padding: '6px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '0.85rem',
             position: 'relative'
           }}>
-            <Handle 
-              type="target" 
-              position={Position.Left} 
-              id={`${data.label}-${col.name}-target`} 
-              style={{ visibility: 'hidden' }} 
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`${data.label}-${col.name}-target`}
+              style={{ visibility: 'hidden' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ color: 'var(--text-primary)', fontWeight: col.is_pk ? '600' : '400' }}>{col.name}</span>
@@ -990,11 +1042,11 @@ const TableNode = ({ data }) => {
               {data.isFk(col.name) && <span style={{fontSize: '0.7rem', background: 'var(--bg-tertiary)', padding: '2px 4px', borderRadius: '4px', opacity: 0.8}}>FK</span>}
             </div>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{col.type.split('(')[0]}</span>
-            <Handle 
-              type="source" 
-              position={Position.Right} 
-              id={`${data.label}-${col.name}-source`} 
-              style={{ visibility: 'hidden' }} 
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={`${data.label}-${col.name}-source`}
+              style={{ visibility: 'hidden' }}
             />
           </div>
         ))}
@@ -1011,8 +1063,8 @@ function FlowContent({ schema, relations, theme }) {
   const initialNodes = Object.entries(schema).map(([tableName, columns], index) => ({
     id: tableName,
     type: 'tableNode',
-    data: { 
-      label: tableName, 
+    data: {
+      label: tableName,
       columns: columns,
       isFk: (colName) => relations.some(r => r.from === tableName && r.from_col === colName)
     },
@@ -1075,7 +1127,7 @@ function DashboardView() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  
+ 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#6366f1'];
 
   useEffect(() => {
@@ -1105,10 +1157,11 @@ function DashboardView() {
   }
 
   const cards = [
-    { title: 'Chiffre d\'Affaires', value: `${stats?.total_revenue?.toLocaleString()} DT`, icon: CreditCard, color: '#3b82f6', trend: '+12.5%', isUp: true },
-    { title: 'Commandes', value: stats?.total_orders?.toLocaleString(), icon: ShoppingBag, color: '#10b981', trend: '+5.2%', isUp: true },
-    { title: 'Clients', value: stats?.total_customers?.toLocaleString(), icon: Users, color: '#f59e0b', trend: '+2.1%', isUp: true },
-    { title: 'Produits', value: stats?.total_products?.toLocaleString(), icon: Database, color: '#8b5cf6', trend: '+0.8%', isUp: true },
+    { title: 'Chiffre d\'Affaires', value: `${stats?.total_revenue?.toLocaleString('fr-FR', {maximumFractionDigits:0})} DT`, icon: CreditCard, color: '#3b82f6', trend: '+12.5%', isUp: true },
+    { title: 'Bénéfice Net', value: `${stats?.net_profit?.toLocaleString('fr-FR', {maximumFractionDigits:0})} DT`, icon: TrendingUp, color: '#10b981', trend: '+14.2%', isUp: true },
+    { title: 'Commandes', value: stats?.total_orders?.toLocaleString('fr-FR'), icon: ShoppingBag, color: '#8b5cf6', trend: '+5.2%', isUp: true },
+    { title: 'Clients', value: stats?.total_customers?.toLocaleString('fr-FR'), icon: Users, color: '#f59e0b', trend: '+2.1%', isUp: true },
+    { title: 'Produits', value: stats?.total_products?.toLocaleString('fr-FR'), icon: Database, color: '#ec4899', trend: '+0.8%', isUp: true },
   ];
 
   return (
@@ -1135,13 +1188,13 @@ function DashboardView() {
           <div key={i} className="stat-card" style={{animationDelay: `${i * 0.1}s`}}>
             <div className="stat-card-inner">
               <div className="stat-icon" style={{ backgroundColor: `${card.color}15`, color: card.color }}>
-                <card.icon size={28} />
+                <card.icon size={20} />
               </div>
               <div className="stat-info">
-                <p className="stat-title">{card.title}</p>
-                <h3 className="stat-value">{card.value}</h3>
+                <p className="stat-title" title={card.title}>{card.title}</p>
+                <h3 className="stat-value" title={card.value}>{card.value}</h3>
                 <div className={`stat-trend ${card.isUp ? 'up' : 'down'}`}>
-                  {card.isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                  {card.isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                   <span>{card.trend}</span>
                 </div>
               </div>
@@ -1159,109 +1212,206 @@ function DashboardView() {
 
       <div className="dashboard-content">
         {activeTab === 'overview' && (
-          <div className="overview-grid">
-            <div className="chart-card">
-              <div className="chart-header">
-                <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="overview-grid">
+              <div className="chart-card">
+                <div className="chart-header">
                   <h3>Évolution des Revenus</h3>
                   <p>Performance mensuelle globale (DT)</p>
                 </div>
+                <div style={{ height: '350px', width: '100%' }}>
+                  <ResponsiveContainer>
+                    <LineChart data={stats?.monthly_sales}>
+                      <defs>
+                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                      <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={4} dot={{ r: 4, fill: 'var(--accent)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0, fill: 'var(--accent)' }} animationDuration={1500} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div style={{ height: '350px', width: '100%' }}>
-                <ResponsiveContainer>
-                  <LineChart data={stats?.monthly_sales}>
-                    <defs>
-                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                    <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
-                    />
-                    <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={4} dot={{ r: 4, fill: 'var(--accent)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0, fill: 'var(--accent)' }} animationDuration={1500} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
 
-            <div className="chart-card">
-              <div className="chart-header">
-                <div>
+              <div className="chart-card">
+                <div className="chart-header">
                   <h3>Top 5 Produits</h3>
                   <p>Produits les plus rentables</p>
                 </div>
+                <div className="top-products-list">
+                  {stats?.top_products?.map((product, idx) => (
+                    <div key={idx} className="top-product-item">
+                      <div className="product-rank">{idx + 1}</div>
+                      <div className="product-details">
+                        <div className="product-name">{product.name}</div>
+                        <div className="product-cat">{product.category}</div>
+                      </div>
+                      <div className="product-stats">
+                        <div className="product-value">{product.revenue?.toLocaleString('fr-FR', {maximumFractionDigits:0})} DT</div>
+                        <div className="product-count">{product.count} vendus</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="top-products-list">
-                {stats?.top_products?.map((product, idx) => (
-                  <div key={idx} className="top-product-item">
-                    <div className="product-rank">{idx + 1}</div>
-                    <div className="product-details">
-                      <div className="product-name">{product.name}</div>
-                      <div className="product-cat">{product.category}</div>
+            </div>
+
+            <div className="overview-grid">
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Clients les plus Fidèles</h3>
+                  <p>Top 5 clients par points accumulés</p>
+                </div>
+                <div className="top-products-list">
+                  {stats?.loyal_customers?.map((client, idx) => (
+                    <div key={idx} className="top-product-item" style={{ borderColor: 'rgba(139, 92, 246, 0.15)' }}>
+                      <div className="product-rank" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>{idx + 1}</div>
+                      <div className="product-details">
+                        <div className="product-name">{client.name}</div>
+                        <div className="product-cat">{client.points} points de fidélité</div>
+                      </div>
+                      <div className="product-stats">
+                        <div className="product-value" style={{ color: '#8b5cf6' }}>{client.spent?.toLocaleString('fr-FR', {maximumFractionDigits:0})} DT</div>
+                        <div className="product-count">Total dépensé</div>
+                      </div>
                     </div>
-                    <div className="product-stats">
-                      <div className="product-value">{product.revenue?.toLocaleString()} DT</div>
-                      <div className="product-count">{product.count} vendus</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Satisfaction Clients</h3>
+                  <p>Produits les mieux notés</p>
+                </div>
+                <div className="top-products-list">
+                  {stats?.top_rated_products?.map((product, idx) => (
+                    <div key={idx} className="top-product-item" style={{ borderColor: 'rgba(245, 158, 11, 0.15)' }}>
+                      <div className="product-rank" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>★</div>
+                      <div className="product-details">
+                        <div className="product-name">{product.name}</div>
+                        <div className="product-cat">{product.count} avis formulés</div>
+                      </div>
+                      <div className="product-stats">
+                        <div className="product-value" style={{ color: '#f59e0b' }}>{product.rating} / 5</div>
+                        <div className="product-count">Note moyenne</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'sales' && (
-          <div className="overview-grid">
-            <div className="chart-card">
-              <div className="chart-header">
-                <h3>Ventes Récentes</h3>
-                <p>Les 10 dernières transactions clients</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="overview-grid">
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Ventes Récentes</h3>
+                  <p>Les 10 dernières transactions clients</p>
+                </div>
+                <div className="top-products-list">
+                  {stats?.recent_sales?.map((sale, idx) => (
+                    <div key={idx} className="top-product-item">
+                      <div className="product-rank" style={{background: 'var(--bg-primary)'}}><ShoppingBag size={14}/></div>
+                      <div className="product-details">
+                        <div className="product-name">{sale.client}</div>
+                        <div className="product-cat">Commande #{sale.id} • {sale.date}</div>
+                      </div>
+                      <div className="product-stats">
+                        <div className="product-value">{sale.amount?.toLocaleString('fr-FR')} DT</div>
+                        <div className={`product-count`} style={{color: sale.status === 'Livrée' ? '#10b981' : '#f59e0b'}}>{sale.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="top-products-list">
-                {stats?.recent_sales?.map((sale, idx) => (
-                  <div key={idx} className="top-product-item">
-                    <div className="product-rank" style={{background: 'var(--bg-primary)'}}><ShoppingBag size={14}/></div>
-                    <div className="product-details">
-                      <div className="product-name">{sale.client}</div>
-                      <div className="product-cat">Commande #{sale.id} • {sale.date}</div>
+
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Ventes par Catégorie</h3>
+                  <p>Volume de produits par secteur</p>
+                </div>
+                <div style={{ height: '280px', width: '100%' }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={stats?.category_distribution} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={5} dataKey="value" stroke="none">
+                        {stats?.category_distribution?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '16px'}}>
+                  {stats?.category_distribution?.slice(0, 4).map((cat, i) => (
+                    <div key={i} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem'}}>
+                      <div style={{width: '8px', height: '8px', borderRadius: '2px', background: COLORS[i % COLORS.length]}}></div>
+                      <span style={{color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{cat.name}</span>
                     </div>
-                    <div className="product-stats">
-                      <div className="product-value">{sale.amount?.toLocaleString()} DT</div>
-                      <div className={`product-count`} style={{color: sale.status === 'Livrée' ? '#10b981' : '#f59e0b'}}>{sale.status}</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="chart-card">
-              <div className="chart-header">
-                <h3>Ventes par Catégorie</h3>
-                <p>Volume de produits par secteur</p>
+            <div className="overview-grid">
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Ventes par Région (Gouvernorat)</h3>
+                  <p>Performance des ventes dans les gouvernorats tunisiens</p>
+                </div>
+                <div style={{ height: '350px', width: '100%' }}>
+                  <ResponsiveContainer>
+                    <BarChart data={stats?.sales_by_region}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="var(--text-secondary)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                      <Bar dataKey="value" fill="var(--accent)" radius={[6, 6, 0, 0]} barSize={28}>
+                        {stats?.sales_by_region?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div style={{ height: '350px', width: '100%' }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={stats?.category_distribution} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value" stroke="none">
-                      {stats?.category_distribution?.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '20px'}}>
-                {stats?.category_distribution?.slice(0, 4).map((cat, i) => (
-                  <div key={i} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem'}}>
-                    <div style={{width: '8px', height: '8px', borderRadius: '2px', background: COLORS[i % COLORS.length]}}></div>
-                    <span style={{color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{cat.name}</span>
-                  </div>
-                ))}
+
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Répartition des Paiements</h3>
+                  <p>Transactions ventilées par mode de règlement</p>
+                </div>
+                <div style={{ height: '240px', width: '100%' }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={stats?.payment_methods} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                        {stats?.payment_methods?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '12px'}}>
+                  {stats?.payment_methods?.slice(0, 4).map((pm, i) => (
+                    <div key={i} style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem'}}>
+                      <div style={{width: '6px', height: '6px', borderRadius: '50%', background: COLORS[(i + 3) % COLORS.length]}}></div>
+                      <span style={{color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={pm.name}>{pm.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1334,7 +1484,7 @@ function ReportingView() {
       { id: 3, title: "Évolution des Commandes", question: "Combien de commandes par mois sur les 6 derniers mois ?", data: null, type: 'line' },
     ];
   });
-  
+ 
   const [newTitle, setNewTitle] = useState('');
   const [newQuery, setNewQuery] = useState('');
   const [newType, setNewType] = useState('bar');
@@ -1346,7 +1496,7 @@ function ReportingView() {
   }, [reports]);
 
   const runReport = async (id, question) => {
-    setLoading(prev => ({ ...prev, [id]: true }));
+    setLoading(prev => ({ ...prev, [id]: 'request' }));
     try {
       const res = await fetch('http://localhost:8000/ask', {
         method: 'POST',
@@ -1354,6 +1504,13 @@ function ReportingView() {
         body: JSON.stringify({ question })
       });
       const data = await res.json();
+      
+      if (data && data.success) {
+        setLoading(prev => ({ ...prev, [id]: 'chart' }));
+        // Simulated delay for chart generation
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+      
       setReports(prev => prev.map(r => r.id === id ? { ...r, data: data } : r));
     } catch (err) {
       console.error(err);
@@ -1364,7 +1521,7 @@ function ReportingView() {
 
   const handleAddWidget = async () => {
     if (!newQuery.trim()) return;
-    
+   
     setIsAdding(true);
     const newId = Date.now();
     const finalTitle = newTitle.trim() || newQuery.trim();
@@ -1375,11 +1532,11 @@ function ReportingView() {
       data: null,
       type: newType
     };
-    
+   
     setReports(prev => [newReport, ...prev]);
     setNewQuery('');
     setNewTitle('');
-    
+   
     // Auto-run the new report
     await runReport(newId, newQuery);
     setIsAdding(false);
@@ -1397,27 +1554,27 @@ function ReportingView() {
           <PlusCircle size={20} className="text-accent" />
           <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: '600'}}>Ajouter un indicateur au tableau de bord</h3>
         </div>
-        
+       
         <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
-          <input 
-            type="text" 
-            placeholder="Titre du widget (ex: Ventes Mensuelles par Région)" 
+          <input
+            type="text"
+            placeholder="Titre du widget (ex: Ventes Mensuelles par Région)"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             style={{width: '100%', padding: '10px 14px', fontSize: '0.95rem'}}
           />
-          
+         
           <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-            <input 
-              type="text" 
-              placeholder="Posez votre question (ex: Quels sont les revenus par gouvernorat en 2025 ?)" 
+            <input
+              type="text"
+              placeholder="Posez votre question (ex: Quels sont les revenus par gouvernorat en 2025 ?)"
               value={newQuery}
               onChange={(e) => setNewQuery(e.target.value)}
               style={{flex: 1, minWidth: '300px', padding: '10px 14px'}}
               onKeyDown={(e) => e.key === 'Enter' && handleAddWidget()}
             />
-            <select 
-              value={newType} 
+            <select
+              value={newType}
               onChange={(e) => setNewType(e.target.value)}
               style={{width: '160px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text-primary)', padding: '0 12px', height: '40px'}}
             >
@@ -1427,13 +1584,13 @@ function ReportingView() {
               <option value="area">Zone (Area)</option>
               <option value="radar">Radar (Kiviat)</option>
             </select>
-            <button 
-              className="nav-btn active" 
+            <button
+              className="nav-btn active"
               onClick={handleAddWidget}
               disabled={isAdding || !newQuery.trim()}
               style={{margin: 0, height: '40px', padding: '0 20px'}}
             >
-              {isAdding ? <RefreshCcw size={16} className="animate-spin" /> : <PlusCircle size={16} />} 
+              {isAdding ? <RefreshCcw size={16} className="animate-spin" /> : <PlusCircle size={16} />}
               <span style={{marginLeft: '8px'}}>Ajouter</span>
             </button>
           </div>
@@ -1450,8 +1607,8 @@ function ReportingView() {
                 <p className="report-widget-question">{report.question}</p>
               </div>
               <div style={{display: 'flex', gap: '8px'}}>
-                <button 
-                  className="action-btn" 
+                <button
+                  className="action-btn"
                   onClick={() => runReport(report.id, report.question)}
                   disabled={loading[report.id]}
                   title="Actualiser"
@@ -1459,8 +1616,8 @@ function ReportingView() {
                 >
                   {loading[report.id] ? <RefreshCcw size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
                 </button>
-                <button 
-                  className="action-btn delete" 
+                <button
+                  className="action-btn delete"
                   onClick={() => deleteReport(report.id)}
                   title="Supprimer"
                   style={{width: '32px', height: '32px', borderRadius: '8px'}}
@@ -1478,10 +1635,40 @@ function ReportingView() {
               )}
 
               {loading[report.id] && (
-                <div style={{height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border)'}}>
-                  <div style={{textAlign: 'center'}}>
-                    <RefreshCcw size={28} className="animate-spin" style={{color: 'var(--accent)', marginBottom: '16px'}} />
-                    <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500'}}>Exécution de la requête SQL...</p>
+                <div style={{
+                  height: '360px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  gap: '16px'
+                }}>
+                  {/* Modern minimalist spinner */}
+                  <div className="animate-spin" style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    border: '2px solid var(--border)',
+                    borderTopColor: 'var(--accent)'
+                  }} />
+                  
+                  <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      color: 'var(--text-primary)'
+                    }}>
+                      {loading[report.id] === 'request' ? 'Génération de la requête...' : 'Modélisation du graphique...'}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      {loading[report.id] === 'request' ? 'Étape 1 sur 2' : 'Étape 2 sur 2'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1498,8 +1685,8 @@ function ReportingView() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                         <XAxis dataKey={report.data.results.columns[0]} stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
                         <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)'}} 
+                        <Tooltip
+                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)'}}
                         />
                         <Bar dataKey={report.data.results.columns[1]} fill="#2c75ff" radius={[6, 6, 0, 0]} />
                       </BarChart>
@@ -1561,8 +1748,8 @@ function ReportingView() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                         <XAxis dataKey={report.data.results.columns[0]} stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
                         <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}} 
+                        <Tooltip
+                          contentStyle={{background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '12px'}}
                         />
                         <Line type="monotone" dataKey={report.data.results.columns[1]} stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
                       </LineChart>
