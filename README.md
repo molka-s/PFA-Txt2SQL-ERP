@@ -1,4 +1,4 @@
-# Txt2SQL Expert ERP P
+# Txt2SQL Expert ERP 
 
 Ce projet est un moteur de recherche en langage naturel (Natural Language to SQL) conçu pour un ERP du secteur cosmétique. Il permet de poser des questions complexes en français et de recevoir les résultats directement depuis une base PostgreSQL.
 
